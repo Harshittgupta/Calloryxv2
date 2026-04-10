@@ -1,35 +1,35 @@
+import React, { useState, useReducer, createContext, useContext, useEffect, useRef } from 'react';
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useReducer,
-  useState,
-} from "react";
-import {
-  ActivityIndicator,
-  Button,
-  FlatList,
-  ScrollView,
-  StyleSheet,
+  View,
   Text,
   TextInput,
+  Button,
+  StyleSheet,
+  ScrollView,
   TouchableOpacity,
-  View,
-} from "react-native";
+  FlatList,
+  ActivityIndicator,
+  Animated,
+  Easing,
+} from 'react-native';
 
 // Exp 05 imports
-import PostItem from "./components/PostItem";
-import { fetchPosts } from "./services/api";
-import { getMeetingNote, saveMeetingNote } from "./storage/asyncstorage";
+import { fetchPosts } from './services/api';
+import { saveMeetingNote, getMeetingNote } from './storage/asyncstorage';
+import PostItem from './components/PostItem';
 
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createDrawerNavigator } from "@react-navigation/drawer";
-import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+// Exp 06 imports
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 
-import { Provider, useDispatch, useSelector } from "react-redux";
-import { createStore } from "redux";
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+
+import { createStore } from 'redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 
 /* ==========================================================
    1. REDUX — Actions, Reducer, Store
@@ -37,8 +37,8 @@ import { createStore } from "redux";
    ========================================================== */
 
 // Action types
-const INCREMENT_INSIGHTS = "INCREMENT_INSIGHTS";
-const RESET_INSIGHTS = "RESET_INSIGHTS";
+const INCREMENT_INSIGHTS = 'INCREMENT_INSIGHTS';
+const RESET_INSIGHTS = 'RESET_INSIGHTS';
 
 // Action creators
 const incrementInsights = () => ({ type: INCREMENT_INSIGHTS });
@@ -68,9 +68,9 @@ const UserContext = createContext();
 
 const UserProvider = ({ children }) => {
   const [user, setUser] = useState({
-    name: "Harshit Gupta",
-    email: "harshit@calloryx.ai",
-    org: "Calloryx Pvt. Ltd.",
+    name: 'Harshit Gupta',
+    email: 'harshit@calloryx.ai',
+    org: 'Calloryx Pvt. Ltd.',
   });
   const [darkMode, setDarkMode] = useState(false);
 
@@ -88,35 +88,23 @@ const UserProvider = ({ children }) => {
 
 const qaInitialState = {
   questions: [
-    {
-      id: 1,
-      q: "What decisions were made?",
-      a: "Deployment timeline confirmed for Friday. Backend tasks assigned to Harshit. QA to use staging-v2.",
-    },
-    {
-      id: 2,
-      q: "Any risks identified?",
-      a: "API performance bottlenecks and potential testing delays were flagged. Mitigation plan discussed with QA team.",
-    },
-    {
-      id: 3,
-      q: "Who owns what?",
-      a: "Harshit — backend API. Priya — release notes. QA Team — performance testing.",
-    },
+    { id: 1, q: 'What decisions were made?', a: 'Deployment timeline confirmed for Friday. Backend tasks assigned to Harshit. QA to use staging-v2.' },
+    { id: 2, q: 'Any risks identified?', a: 'API performance bottlenecks and potential testing delays were flagged. Mitigation plan discussed with QA team.' },
+    { id: 3, q: 'Who owns what?', a: 'Harshit — backend API. Priya — release notes. QA Team — performance testing.' },
   ],
 };
 
 const qaReducer = (state, action) => {
   switch (action.type) {
-    case "ADD_QUESTION":
+    case 'ADD_QUESTION':
       return {
         ...state,
         questions: [
           ...state.questions,
-          { id: Date.now(), q: action.payload, a: "AI is analyzing..." },
+          { id: Date.now(), q: action.payload, a: 'AI is analyzing...' },
         ],
       };
-    case "CLEAR_ALL":
+    case 'CLEAR_ALL':
       return { ...state, questions: [] };
     default:
       return state;
@@ -128,27 +116,27 @@ const qaReducer = (state, action) => {
    ========================================================== */
 
 const lightTheme = {
-  bg: "#fff",
-  card: "#fafafa",
-  cardBorder: "#ddd",
-  text: "#111",
-  subtext: "#444",
-  muted: "#888",
-  input: "#fafafa",
-  inputBorder: "#ccc",
-  statBg: "#f5f5f5",
+  bg: '#fff',
+  card: '#fafafa',
+  cardBorder: '#ddd',
+  text: '#111',
+  subtext: '#444',
+  muted: '#888',
+  input: '#fafafa',
+  inputBorder: '#ccc',
+  statBg: '#f5f5f5',
 };
 
 const darkTheme = {
-  bg: "#121212",
-  card: "#1e1e1e",
-  cardBorder: "#333",
-  text: "#f0f0f0",
-  subtext: "#bbb",
-  muted: "#777",
-  input: "#2a2a2a",
-  inputBorder: "#444",
-  statBg: "#1a1a1a",
+  bg: '#121212',
+  card: '#1e1e1e',
+  cardBorder: '#333',
+  text: '#f0f0f0',
+  subtext: '#bbb',
+  muted: '#777',
+  input: '#2a2a2a',
+  inputBorder: '#444',
+  statBg: '#1a1a1a',
 };
 
 const useTheme = () => {
@@ -167,15 +155,8 @@ const UserIcon = () => (
 const Card = ({ title, children }) => {
   const theme = useTheme();
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: theme.card, borderColor: theme.cardBorder },
-      ]}
-    >
-      {title ? (
-        <Text style={[styles.cardTitle, { color: theme.text }]}>{title}</Text>
-      ) : null}
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+      {title ? <Text style={[styles.cardTitle, { color: theme.text }]}>{title}</Text> : null}
       {children}
     </View>
   );
@@ -184,12 +165,7 @@ const Card = ({ title, children }) => {
 const StatBox = ({ label, value }) => {
   const theme = useTheme();
   return (
-    <View
-      style={[
-        styles.statBox,
-        { backgroundColor: theme.statBg, borderColor: theme.cardBorder },
-      ]}
-    >
+    <View style={[styles.statBox, { backgroundColor: theme.statBg, borderColor: theme.cardBorder }]}>
       <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: theme.muted }]}>{label}</Text>
     </View>
@@ -199,39 +175,24 @@ const StatBox = ({ label, value }) => {
 /* ================= LOGIN SCREEN ================= */
 
 function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { setUser } = useContext(UserContext);
   const theme = useTheme();
 
   const handleLogin = () => {
-    setUser({
-      name: "Harshit Gupta",
-      email: email || "harshit@calloryx.ai",
-      org: "Calloryx Pvt. Ltd.",
-    });
-    navigation.replace("Main");
+    setUser({ name: 'Harshit Gupta', email: email || 'harshit@calloryx.ai', org: 'Calloryx Pvt. Ltd.' });
+    navigation.replace('Main');
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.center, { backgroundColor: theme.bg }]}
-    >
+    <ScrollView contentContainerStyle={[styles.center, { backgroundColor: theme.bg }]}>
       <UserIcon />
       <Text style={[styles.appName, { color: theme.text }]}>Calloryx</Text>
-      <Text style={[styles.subtitle, { color: theme.muted }]}>
-        AI Meeting Intelligence Platform
-      </Text>
+      <Text style={[styles.subtitle, { color: theme.muted }]}>AI Meeting Intelligence Platform</Text>
 
       <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.input,
-            borderColor: theme.inputBorder,
-            color: theme.text,
-          },
-        ]}
+        style={[styles.input, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
         placeholder="Work email"
         placeholderTextColor={theme.muted}
         value={email}
@@ -240,14 +201,7 @@ function LoginScreen({ navigation }) {
         autoCapitalize="none"
       />
       <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.input,
-            borderColor: theme.inputBorder,
-            color: theme.text,
-          },
-        ]}
+        style={[styles.input, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
         placeholder="Password"
         placeholderTextColor={theme.muted}
         value={password}
@@ -257,9 +211,7 @@ function LoginScreen({ navigation }) {
 
       <Button title="Login" onPress={handleLogin} />
 
-      <Text style={[styles.hint, { color: theme.muted }]}>
-        Demo: harshit@calloryx.ai / 1234
-      </Text>
+      <Text style={[styles.hint, { color: theme.muted }]}>Demo: harshit@calloryx.ai / 1234</Text>
     </ScrollView>
   );
 }
@@ -267,22 +219,16 @@ function LoginScreen({ navigation }) {
 /* ================= MEETINGS SCREEN ================= */
 
 function MeetingsScreen() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const insightsCount = useSelector((state) => state.count);
   const dispatch = useDispatch();
   const { user } = useContext(UserContext);
   const theme = useTheme();
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
-    >
-      <Text style={[styles.title, { color: theme.text }]}>
-        Meetings Dashboard
-      </Text>
-      <Text style={[styles.meta, { color: theme.subtext }]}>
-        Welcome, {user.name}
-      </Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Meetings Dashboard</Text>
+      <Text style={[styles.meta, { color: theme.subtext }]}>Welcome, {user.name}</Text>
 
       <View style={styles.statsRow}>
         <StatBox label="Total" value="18" />
@@ -291,29 +237,15 @@ function MeetingsScreen() {
       </View>
 
       <View style={styles.row}>
-        <Button
-          title="+ Add Insight"
-          onPress={() => dispatch(incrementInsights())}
-        />
+        <Button title="+ Add Insight" onPress={() => dispatch(incrementInsights())} />
         <View style={{ width: 10 }} />
-        <Button
-          title="Reset"
-          color="gray"
-          onPress={() => dispatch(resetInsights())}
-        />
+        <Button title="Reset" color="gray" onPress={() => dispatch(resetInsights())} />
       </View>
 
       <View style={{ height: 14 }} />
 
       <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.input,
-            borderColor: theme.inputBorder,
-            color: theme.text,
-          },
-        ]}
+        style={[styles.input, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
         placeholder="Search meetings..."
         placeholderTextColor={theme.muted}
         value={search}
@@ -321,39 +253,23 @@ function MeetingsScreen() {
       />
 
       <Card title="Sprint Review">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Status: Completed | Duration: 42 mins
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Topics: API integration, Deployment
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Participants: Harshit, Priya, Rohan
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Status: Completed  |  Duration: 42 mins</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Topics: API integration, Deployment</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Participants: Harshit, Priya, Rohan</Text>
         <TouchableOpacity style={styles.btn}>
           <Text style={styles.btnText}>View Insights</Text>
         </TouchableOpacity>
       </Card>
 
       <Card title="Client Sync — TechMahindra">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Status: Upcoming | Today 4:30 PM
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Participants: 5
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Status: Upcoming  |  Today 4:30 PM</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Participants: 5</Text>
       </Card>
 
       <Card title="Design Handoff">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Status: Completed | Duration: 28 mins
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Topics: Figma, Components
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Participants: Sneha, Karan, Divya
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Status: Completed  |  Duration: 28 mins</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Topics: Figma, Components</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Participants: Sneha, Karan, Divya</Text>
         <TouchableOpacity style={styles.btn}>
           <Text style={styles.btnText}>View Insights</Text>
         </TouchableOpacity>
@@ -367,41 +283,27 @@ function MeetingsScreen() {
 function SummaryScreen() {
   const theme = useTheme();
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
-    >
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}>
       <Text style={[styles.title, { color: theme.text }]}>Meeting Summary</Text>
 
       <Card title="Executive Summary">
         <Text style={[styles.bodyText, { color: theme.subtext }]}>
-          The team finalized deployment timelines and assigned backend ownership
-          to Harshit. QA handoff is scheduled for Thursday. Cross-team blockers
-          were resolved.
+          The team finalized deployment timelines and assigned backend
+          ownership to Harshit. QA handoff is scheduled for Thursday.
+          Cross-team blockers were resolved.
         </Text>
       </Card>
 
       <Card title="Action Items">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          • Complete backend API integration — Harshit (Thu)
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          • Prepare release notes — Priya (Wed)
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          • Conduct performance testing — QA Team (Fri)
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>• Complete backend API integration — Harshit (Thu)</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>• Prepare release notes — Priya (Wed)</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>• Conduct performance testing — QA Team (Fri)</Text>
       </Card>
 
       <Card title="Key Decisions">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          • Deployment confirmed for Friday 6 PM IST
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          • Harshit leads backend until handoff
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          • Staging-v2 environment approved for testing
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>• Deployment confirmed for Friday 6 PM IST</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>• Harshit leads backend until handoff</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>• Staging-v2 environment approved for testing</Text>
       </Card>
     </ScrollView>
   );
@@ -412,35 +314,21 @@ function SummaryScreen() {
 function TranscriptScreen() {
   const theme = useTheme();
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
-    >
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}>
       <Text style={[styles.title, { color: theme.text }]}>Transcript</Text>
 
       <Card title="Sprint Review — 42:17">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          0:32 Harshit: Let's finalize the endpoints today.
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          1:14 Priya: AI summary looks accurate. We should adopt this.
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          3:05 Rohan: Deployment confirmed for Friday. Align by Thursday EOD.
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          5:47 Harshit: I'll handle backend. API rate limits need adjustment.
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          9:22 Priya: I'll update the Confluence docs.
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>0:32  Harshit: Let's finalize the endpoints today.</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>1:14  Priya: AI summary looks accurate. We should adopt this.</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>3:05  Rohan: Deployment confirmed for Friday. Align by Thursday EOD.</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>5:47  Harshit: I'll handle backend. API rate limits need adjustment.</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>9:22  Priya: I'll update the Confluence docs.</Text>
       </Card>
 
       <Card title="Talk Time">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Harshit — 42%
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>Priya — 35%</Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>Rohan — 23%</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Harshit — 42%</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Priya   — 35%</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Rohan  — 23%</Text>
       </Card>
     </ScrollView>
   );
@@ -450,33 +338,22 @@ function TranscriptScreen() {
 
 function QAScreen() {
   const [qaState, qaDispatch] = useReducer(qaReducer, qaInitialState);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const theme = useTheme();
 
   const handleAsk = () => {
-    if (query.trim() === "") return;
-    qaDispatch({ type: "ADD_QUESTION", payload: query });
-    setQuery("");
+    if (query.trim() === '') return;
+    qaDispatch({ type: 'ADD_QUESTION', payload: query });
+    setQuery('');
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
-    >
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}>
       <Text style={[styles.title, { color: theme.text }]}>AI Q&A</Text>
-      <Text style={[styles.hint, { color: theme.muted }]}>
-        State managed with useReducer
-      </Text>
+      <Text style={[styles.hint, { color: theme.muted }]}>State managed with useReducer</Text>
 
       <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.input,
-            borderColor: theme.inputBorder,
-            color: theme.text,
-          },
-        ]}
+        style={[styles.input, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
         placeholder="Ask something about this meeting..."
         placeholderTextColor={theme.muted}
         value={query}
@@ -486,26 +363,18 @@ function QAScreen() {
       <View style={styles.row}>
         <Button title="Ask AI" onPress={handleAsk} />
         <View style={{ width: 10 }} />
-        <Button
-          title="Clear All"
-          color="gray"
-          onPress={() => qaDispatch({ type: "CLEAR_ALL" })}
-        />
+        <Button title="Clear All" color="gray" onPress={() => qaDispatch({ type: 'CLEAR_ALL' })} />
       </View>
 
       <View style={{ height: 16 }} />
 
       {qaState.questions.length === 0 && (
-        <Text style={[styles.meta, { color: theme.muted }]}>
-          No questions yet. Ask something above.
-        </Text>
+        <Text style={[styles.meta, { color: theme.muted }]}>No questions yet. Ask something above.</Text>
       )}
 
       {qaState.questions.map((item) => (
         <Card key={item.id} title={`Q: ${item.q}`}>
-          <Text style={[styles.bodyText, { color: theme.subtext }]}>
-            {item.a}
-          </Text>
+          <Text style={[styles.bodyText, { color: theme.subtext }]}>{item.a}</Text>
         </Card>
       ))}
     </ScrollView>
@@ -518,8 +387,8 @@ function QAScreen() {
 function PostsScreen() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [note, setNote] = useState("");
-  const [savedNote, setSavedNote] = useState("");
+  const [note, setNote] = useState('');
+  const [savedNote, setSavedNote] = useState('');
   const theme = useTheme();
 
   // Fetch API with async/await on mount
@@ -530,51 +399,33 @@ function PostsScreen() {
 
   const loadPosts = async () => {
     setLoading(true);
-    const data = await fetchPosts(); // services/api.js
+    const data = await fetchPosts();   // services/api.js
     setPosts(data);
     setLoading(false);
   };
 
   // AsyncStorage — save note
   const handleSaveNote = async () => {
-    await saveMeetingNote(note); // storage/asyncstorage.js
-    alert("Note saved to AsyncStorage!");
+    await saveMeetingNote(note);       // storage/asyncstorage.js
+    alert('Note saved to AsyncStorage!');
   };
 
   // AsyncStorage — retrieve note
   const loadNote = async () => {
-    const stored = await getMeetingNote(); // storage/asyncstorage.js
+    const stored = await getMeetingNote();  // storage/asyncstorage.js
     if (stored) setSavedNote(stored);
   };
 
   return (
     <View style={[styles.container, { flex: 1, backgroundColor: theme.bg }]}>
-      <Text style={[styles.title, { color: theme.text }]}>
-        Posts (Fetch API)
-      </Text>
-      <Text style={[styles.hint, { color: theme.muted }]}>
-        Data fetched from JSONPlaceholder using async/await
-      </Text>
+      <Text style={[styles.title, { color: theme.text }]}>Posts (Fetch API)</Text>
+      <Text style={[styles.hint, { color: theme.muted }]}>Data fetched from JSONPlaceholder using async/await</Text>
 
       {/* AsyncStorage note saver */}
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.card, borderColor: theme.cardBorder },
-        ]}
-      >
-        <Text style={[styles.cardTitle, { color: theme.text }]}>
-          Meeting Note (AsyncStorage)
-        </Text>
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>Meeting Note (AsyncStorage)</Text>
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.input,
-              borderColor: theme.inputBorder,
-              color: theme.text,
-            },
-          ]}
+          style={[styles.input, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
           placeholder="Type a note to save locally..."
           placeholderTextColor={theme.muted}
           value={note}
@@ -585,7 +436,7 @@ function PostsScreen() {
           <View style={{ width: 10 }} />
           <Button title="Load Note" onPress={loadNote} color="gray" />
         </View>
-        {savedNote !== "" && (
+        {savedNote !== '' && (
           <Text style={[styles.meta, { color: theme.subtext, marginTop: 8 }]}>
             Saved: {savedNote}
           </Text>
@@ -597,20 +448,14 @@ function PostsScreen() {
       </Text>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#4A90E2"
-          style={{ marginTop: 20 }}
-        />
+        <ActivityIndicator size="large" color="#4A90E2" style={{ marginTop: 20 }} />
       ) : (
         <FlatList
           data={posts}
           keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <PostItem item={item} />} // components/PostItem.js
+          renderItem={({ item }) => <PostItem item={item} />}  // components/PostItem.js
           ListEmptyComponent={
-            <Text style={[styles.meta, { color: theme.muted }]}>
-              No posts loaded.
-            </Text>
+            <Text style={[styles.meta, { color: theme.muted }]}>No posts loaded.</Text>
           }
         />
       )}
@@ -632,6 +477,216 @@ function InsightsTopTabs() {
   );
 }
 
+/* ================= DEVICE SCREEN (Exp 06) ================= */
+// Demonstrates: Animated API (fade, scale, slide) + Camera/Gallery + GPS Location
+
+function DeviceScreen() {
+  const theme = useTheme();
+
+  /* ---- 1. FADE ANIMATION ---- */
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const fadeIn = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const fadeOut = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 1000,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  /* ---- 2. SCALE ANIMATION ---- */
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const scaleUp = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1.5,
+      friction: 3,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const scaleDown = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 3,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  /* ---- 3. SLIDE ANIMATION ---- */
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+
+  const slideIn = () => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 500,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const slideOut = () => {
+    Animated.timing(slideAnim, {
+      toValue: -100,
+      duration: 500,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  /* ---- 4. CAMERA / IMAGE GALLERY ---- */
+  const [imageUri, setImageUri] = useState(null);
+
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Camera permission denied.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const openGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Gallery permission denied.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  /* ---- 5. GPS LOCATION ---- */
+  const [location, setLocation] = useState(null);
+  const [locLoading, setLocLoading] = useState(false);
+
+  const getLocation = async () => {
+    setLocLoading(true);
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Location permission denied.');
+      setLocLoading(false);
+      return;
+    }
+    const loc = await Location.getCurrentPositionAsync({});
+    setLocation(loc.coords);
+    setLocLoading(false);
+  };
+
+  return (
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Animations & Device Features</Text>
+
+      {/* ---- FADE ---- */}
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>1. Fade Animation</Text>
+        <Animated.View style={[styles.animBox, { opacity: fadeAnim }]}>
+          <Text style={{ color: '#fff' }}>Fading Box</Text>
+        </Animated.View>
+        <View style={styles.row}>
+          <Button title="Fade In" onPress={fadeIn} />
+          <View style={{ width: 10 }} />
+          <Button title="Fade Out" color="gray" onPress={fadeOut} />
+        </View>
+      </View>
+
+      {/* ---- SCALE ---- */}
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>2. Scale Animation</Text>
+        <Animated.View style={[styles.animBox, { transform: [{ scale: scaleAnim }] }]}>
+          <Text style={{ color: '#fff' }}>Scale Box</Text>
+        </Animated.View>
+        <View style={styles.row}>
+          <Button title="Scale Up" onPress={scaleUp} />
+          <View style={{ width: 10 }} />
+          <Button title="Scale Down" color="gray" onPress={scaleDown} />
+        </View>
+      </View>
+
+      {/* ---- SLIDE ---- */}
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>3. Slide Animation</Text>
+        <Animated.View style={[styles.animBox, { transform: [{ translateX: slideAnim }] }]}>
+          <Text style={{ color: '#fff' }}>Slide Box</Text>
+        </Animated.View>
+        <View style={styles.row}>
+          <Button title="Slide In" onPress={slideIn} />
+          <View style={{ width: 10 }} />
+          <Button title="Slide Out" color="gray" onPress={slideOut} />
+        </View>
+      </View>
+
+      {/* ---- CAMERA / GALLERY ---- */}
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>4. Camera & Image Gallery</Text>
+        <View style={styles.row}>
+          <Button title="Open Camera" onPress={openCamera} />
+          <View style={{ width: 10 }} />
+          <Button title="Open Gallery" color="gray" onPress={openGallery} />
+        </View>
+        {imageUri && (
+          <Animated.Image
+            source={{ uri: imageUri }}
+            style={styles.previewImage}
+          />
+        )}
+        {!imageUri && (
+          <Text style={[styles.meta, { color: theme.muted, marginTop: 8 }]}>
+            No image selected yet.
+          </Text>
+        )}
+      </View>
+
+      {/* ---- GPS LOCATION ---- */}
+      <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>5. GPS Location</Text>
+        <Button title="Get My Location" onPress={getLocation} />
+        {locLoading && (
+          <ActivityIndicator size="small" color="#4A90E2" style={{ marginTop: 10 }} />
+        )}
+        {location && (
+          <View style={{ marginTop: 10 }}>
+            <Text style={[styles.meta, { color: theme.subtext }]}>
+              Latitude:  {location.latitude.toFixed(6)}
+            </Text>
+            <Text style={[styles.meta, { color: theme.subtext }]}>
+              Longitude: {location.longitude.toFixed(6)}
+            </Text>
+            <Text style={[styles.meta, { color: theme.subtext }]}>
+              Accuracy:  {location.accuracy.toFixed(1)} m
+            </Text>
+          </View>
+        )}
+        {!location && !locLoading && (
+          <Text style={[styles.meta, { color: theme.muted, marginTop: 8 }]}>
+            Location not fetched yet.
+          </Text>
+        )}
+      </View>
+
+    </ScrollView>
+  );
+}
+
 /* ================= BOTTOM TABS ================= */
 
 const BottomTab = createBottomTabNavigator();
@@ -642,6 +697,7 @@ function HomeTabs() {
       <BottomTab.Screen name="Meetings" component={MeetingsScreen} />
       <BottomTab.Screen name="Insights" component={InsightsTopTabs} />
       <BottomTab.Screen name="Posts" component={PostsScreen} />
+      <BottomTab.Screen name="Device" component={DeviceScreen} />
     </BottomTab.Navigator>
   );
 }
@@ -658,32 +714,17 @@ function SettingsScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}
-    >
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={styles.profileSection}>
         <UserIcon />
-        <Text style={[styles.profileName, { color: theme.text }]}>
-          {user.name}
-        </Text>
-        <Text style={[styles.profileEmail, { color: theme.muted }]}>
-          {user.email}
-        </Text>
+        <Text style={[styles.profileName, { color: theme.text }]}>{user.name}</Text>
+        <Text style={[styles.profileEmail, { color: theme.muted }]}>{user.email}</Text>
       </View>
 
       <Card title="Edit Profile (Context API)">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Display Name:
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Display Name:</Text>
         <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.input,
-              borderColor: theme.inputBorder,
-              color: theme.text,
-            },
-          ]}
+          style={[styles.input, { backgroundColor: theme.input, borderColor: theme.inputBorder, color: theme.text }]}
           value={editName}
           onChangeText={setEditName}
         />
@@ -692,66 +733,36 @@ function SettingsScreen() {
 
       <Card title="Appearance">
         <View style={styles.row}>
-          <Text style={[styles.meta, { flex: 1, color: theme.subtext }]}>
-            Dark Mode
-          </Text>
+          <Text style={[styles.meta, { flex: 1, color: theme.subtext }]}>Dark Mode</Text>
           <TouchableOpacity
-            style={[
-              styles.toggle,
-              { backgroundColor: darkMode ? "#4A90E2" : "#ccc" },
-            ]}
+            style={[styles.toggle, { backgroundColor: darkMode ? '#4A90E2' : '#ccc' }]}
             onPress={() => setDarkMode(!darkMode)}
           >
-            <View
-              style={[
-                styles.toggleKnob,
-                { alignSelf: darkMode ? "flex-end" : "flex-start" },
-              ]}
-            />
+            <View style={[styles.toggleKnob, { alignSelf: darkMode ? 'flex-end' : 'flex-start' }]} />
           </TouchableOpacity>
         </View>
         <Text style={[styles.hint, { color: theme.muted, marginTop: 4 }]}>
-          Currently: {darkMode ? "Dark" : "Light"} mode
+          Currently: {darkMode ? 'Dark' : 'Light'} mode
         </Text>
       </Card>
 
       <Card title="Profile">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Name: {user.name}
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Email: {user.email}
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Organization: {user.org}
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Timezone: IST (UTC+5:30)
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Name: {user.name}</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Email: {user.email}</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Organization: {user.org}</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Timezone: IST (UTC+5:30)</Text>
       </Card>
 
       <Card title="AI Preferences">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Auto Summary: Enabled
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Transcript Language: English
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          AI Model: GPT-4 Turbo
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Auto Summary: Enabled</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Transcript Language: English</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>AI Model: GPT-4 Turbo</Text>
       </Card>
 
       <Card title="Notifications">
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Meeting Reminders: 15 min before
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Insight Alerts: Enabled
-        </Text>
-        <Text style={[styles.meta, { color: theme.subtext }]}>
-          Weekly Reports: Monday 9 AM
-        </Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Meeting Reminders: 15 min before</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Insight Alerts: Enabled</Text>
+        <Text style={[styles.meta, { color: theme.subtext }]}>Weekly Reports: Monday 9 AM</Text>
       </Card>
     </ScrollView>
   );
@@ -765,14 +776,9 @@ function LogoutScreen({ navigation }) {
     <View style={[styles.center, { backgroundColor: theme.bg }]}>
       <UserIcon />
       <Text style={[styles.title, { color: theme.text }]}>Logout</Text>
-      <Text style={[styles.meta, { color: theme.subtext }]}>
-        Are you sure you want to log out?
-      </Text>
+      <Text style={[styles.meta, { color: theme.subtext }]}>Are you sure you want to log out?</Text>
       <View style={{ height: 16 }} />
-      <Button
-        title="Confirm Logout"
-        onPress={() => navigation.replace("Login")}
-      />
+      <Button title="Confirm Logout" onPress={() => navigation.replace('Login')} />
     </View>
   );
 }
@@ -808,12 +814,8 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <Provider store={store}>
-      {" "}
-      {/* Redux Provider */}
-      <UserProvider>
-        {" "}
-        {/* Context API Provider */}
+    <Provider store={store}>       {/* Redux Provider */}
+      <UserProvider>               {/* Context API Provider */}
         <AppNavigator />
       </UserProvider>
     </Provider>
@@ -825,138 +827,138 @@ export default function App() {
 const styles = StyleSheet.create({
   center: {
     flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 24,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   container: {
     padding: 16,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
   appName: {
     fontSize: 26,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginTop: 8,
   },
   title: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 4,
-    color: "#111",
+    color: '#111',
   },
   subtitle: {
     fontSize: 13,
-    color: "#666",
+    color: '#666',
     marginBottom: 24,
   },
   hint: {
     fontSize: 12,
-    color: "#aaa",
+    color: '#aaa',
     marginBottom: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: '#ccc',
     borderRadius: 6,
     padding: 10,
     marginBottom: 12,
-    width: "100%",
+    width: '100%',
     fontSize: 14,
-    backgroundColor: "#fafafa",
+    backgroundColor: '#fafafa',
   },
   userIcon: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
   },
   userIconText: {
     fontSize: 38,
   },
   profileSection: {
-    alignItems: "center",
+    alignItems: 'center',
     marginBottom: 20,
     paddingTop: 8,
   },
   profileName: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     marginTop: 6,
-    color: "#111",
+    color: '#111',
   },
   profileEmail: {
     fontSize: 13,
-    color: "#666",
+    color: '#666',
   },
   card: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: '#ddd',
     borderRadius: 8,
     padding: 14,
     marginBottom: 14,
-    backgroundColor: "#fafafa",
+    backgroundColor: '#fafafa',
   },
   cardTitle: {
-    fontWeight: "600",
+    fontWeight: '600',
     fontSize: 15,
     marginBottom: 8,
-    color: "#222",
+    color: '#222',
   },
   statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   statBox: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: '#ddd',
     borderRadius: 8,
     padding: 10,
     marginHorizontal: 4,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
   },
   statValue: {
     fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+    fontWeight: 'bold',
+    color: '#333',
   },
   statLabel: {
     fontSize: 11,
-    color: "#888",
+    color: '#888',
     marginTop: 2,
   },
   meta: {
     fontSize: 13,
-    color: "#444",
+    color: '#444',
     marginBottom: 4,
     lineHeight: 20,
   },
   bodyText: {
     fontSize: 13,
-    color: "#444",
+    color: '#444',
     lineHeight: 20,
   },
   btn: {
     marginTop: 10,
-    backgroundColor: "#4A90E2",
+    backgroundColor: '#4A90E2',
     padding: 8,
     borderRadius: 6,
-    alignItems: "center",
+    alignItems: 'center',
   },
   btnText: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: '600',
   },
   row: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 4,
   },
   toggle: {
@@ -964,12 +966,28 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     padding: 3,
-    justifyContent: "center",
+    justifyContent: 'center',
   },
   toggleKnob: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
+  },
+  animBox: {
+    width: 120,
+    height: 60,
+    backgroundColor: '#4A90E2',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 12,
+  },
+  previewImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginTop: 12,
+    resizeMode: 'cover',
   },
 });
